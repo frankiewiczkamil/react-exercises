@@ -1,10 +1,11 @@
 import "./App.css";
-import { ContextExample } from "./examples/context/ContextExample.tsx";
+import FetchingExample from "./examples/fetching/FetchingExample.tsx";
 
 function App() {
   return (
     <>
-      <ContextExample />
+      {/*<ContextExample />*/}
+      <FetchingExample />
     </>
   );
 }

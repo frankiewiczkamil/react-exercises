@@ -1,41 +1,14 @@
-import React, { MutableRefObject, useRef } from "react";
+import React, { useRef } from "react";
 
-const isoDateAt = (deltaDays: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + deltaDays);
-  return d.toISOString().slice(0, 10);
-};
-const url = (date: string) => {
-  return `https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=${date}&end_date=${date}&hourly=pressure_msl`;
-};
-type WeatherData = {
-  hourly: {
-    pressure_msl: number[];
-    time: string[];
-  };
-  hourly_units: {
-    pressure_msl: string;
-    time: string;
-  };
-};
-
-type WeatherDataProps = Record<string, number>;
 export default function FetchingExample() {
   const [weatherData, setWeatherData] = React.useState<WeatherDataProps>({});
   const [delta, setDelta] = React.useState(-25);
   const date = isoDateAt(delta);
-  const fetchWeather = async (abortController: AbortController) => {
+  const fetchWeather = async ({ signal }: AbortController) => {
     try {
-      const response = await fetch(url(date), {
-        signal: abortController.signal,
-      });
+      const response = await fetch(createUrl(date), { signal });
       const json: WeatherData = await response.json();
-      const timeAndPressure: Record<string, number> = {};
-      json.hourly.time.forEach((time, i) => {
-        timeAndPressure[time.substring(11)] = json.hourly.pressure_msl[i];
-      });
-
-      setWeatherData(timeAndPressure);
+      setWeatherData(toWeatherData(json));
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === "AbortError") {
         console.log("aborting redundant request");
@@ -51,12 +24,9 @@ export default function FetchingExample() {
     return () => abortController.abort();
   }, [delta]);
 
-  const abortControllerRef: MutableRefObject<AbortController | null> =
-    useRef(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const attemptToAbort = useRef(0);
   const refresh = async () => {
-    attemptToAbort.current++;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -102,3 +72,30 @@ function WeatherDataTable({ weatherData }: { weatherData: WeatherDataProps }) {
     </table>
   );
 }
+function toWeatherData(json: WeatherData): WeatherDataProps {
+  const timeAndPressure: Record<string, number> = {};
+  json.hourly.time.forEach((time, i) => {
+    timeAndPressure[time.substring(11)] = json.hourly.pressure_msl[i];
+  });
+  return timeAndPressure;
+}
+function isoDateAt(deltaDays: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+function createUrl(date: string) {
+  return `https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=${date}&end_date=${date}&hourly=pressure_msl`;
+}
+type WeatherData = {
+  hourly: {
+    pressure_msl: number[];
+    time: string[];
+  };
+  hourly_units: {
+    pressure_msl: string;
+    time: string;
+  };
+};
+
+type WeatherDataProps = Record<string, number>;
